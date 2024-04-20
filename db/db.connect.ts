@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 dotenv.config();
 
 // setup sequelize
-export const sequelize = new Sequelize("plenatask", "root", "password@123", {
+export const sequelize = new Sequelize("plenatask", "root", process.env.DBPASSWORD, {
   host: "localhost",
   dialect: "mysql",
 });

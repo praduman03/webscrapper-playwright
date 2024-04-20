@@ -130,14 +130,6 @@ async function signInToKaggle(): Promise<void> {
   }
 }
 
-type HubspotData = {
-  email: string;
-  properties: [
-    { property: "firstname"; value: string },
-    { property: "gender"; value: string }
-  ];
-};
-
 async function postDataToHubspot(data: any): Promise<void> {
   const result = [];
   let i = 0;
@@ -155,7 +147,7 @@ async function postDataToHubspot(data: any): Promise<void> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        authorization: "Bearer" + process.env.HUBSPOT_API_KEY,
+        authorization: "Bearer " + process.env.HUBSPOT_API_KEY,
       },
       body: JSON.stringify(result),
     })
