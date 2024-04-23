@@ -15,6 +15,20 @@ type Data = {
   sex: string;
 };
 
+async function extractZipFile(fileUrl: string): Promise<void> {
+  const zipData = await fs.promises.readFile(fileUrl);
+  const zip = await JSZip.loadAsync(zipData);
+  await Promise.all(
+    Object.keys(zip.files).map(async (filename) => {
+      const file = zip.files[filename];
+      const content = await file.async("nodebuffer");
+      const filePath = `./CSVFile/${filename}`;
+      await fs.promises.writeFile(filePath, content);
+    })
+  );
+  console.log("extracted files from zip successfully");
+}
+
 async function readData(): Promise<Data[]> {
   const filename = "./CSVFile/babyNamesUSYOB-mostpopular.csv";
   return new Promise((resolve, reject) => {
@@ -75,21 +89,7 @@ async function fetchDatafromDB(): Promise<BabyData[]> {
   });
 }
 
-async function extractZipFile(fileUrl: string): Promise<void> {
-  const zipData = await fs.promises.readFile(fileUrl);
-  const zip = await JSZip.loadAsync(zipData);
-  await Promise.all(
-    Object.keys(zip.files).map(async (filename) => {
-      const file = zip.files[filename];
-      const content = await file.async("nodebuffer");
-      const filePath = `./CSVFile/${filename}`;
-      await fs.promises.writeFile(filePath, content);
-    })
-  );
-  console.log("extracted files from zip successfully");
-}
-
-async function signInToKaggle(): Promise<void> {
+async function kaggleSignInAndDownload(): Promise<void> {
   const browser: Browser = await chromium.launch({
     headless: true,
     downloadsPath: "./CSVFile",
@@ -110,8 +110,12 @@ async function signInToKaggle(): Promise<void> {
     await page.click(
       "#site-content > div:nth-child(2) > div > div > div.sc-eyfLJd.kBeVzM > form > div > div > div.sc-hwFxst.ddBfgQ > button:nth-child(2)"
     );
+    if (!kaggleUsername || !kagglePassword) {
+      throw new Error('Kaggle username or password is not defined');
+    }
+    
     await page.fill('input[name="email"]', kaggleUsername);
-    await page.fill('input[name="password"]', "kagglepasswordfortesting");
+    await page.fill('input[name="password"]', kagglePassword);
     await page.click('button[type="submit"]');
     await page.waitForTimeout(3000);
     await page.goto(
@@ -133,16 +137,17 @@ async function signInToKaggle(): Promise<void> {
 async function postDataToHubspot(data: any): Promise<void> {
   const result = [];
   let i = 0;
-  while (i < 5) {
-    const { name, sex } = data[i];
+  while (i < 100) {
+    const { id, name, sex } = data[i];
     result.push({
-      email: name + "@gmail.com",
+      email: id + "@gmail.com",
       properties: [
         { property: "firstname", value: name },
         { property: "gender", value: sex },
       ],
     });
     i++;
+  }
     fetch("https://api.hubapi.com/contacts/v1/contact/batch/", {
       method: "POST",
       headers: {
@@ -157,7 +162,6 @@ async function postDataToHubspot(data: any): Promise<void> {
       .catch((error) => {
         console.log(error);
       });
-  }
 }
 
 (async () => {
@@ -166,7 +170,7 @@ async function postDataToHubspot(data: any): Promise<void> {
     console.log(
       "Connection to the database has been established successfully."
     );
-    await signInToKaggle();
+    await kaggleSignInAndDownload();
     await extractZipFile("./CSVFile/archive.zip");
     const data = await readData();
     await insertDataInDB(data);
